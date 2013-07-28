@@ -1,0 +1,72 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Data::Dumper;
+
+# Fix pytivo metadata. Had actors listed twice due to xpath bug, and episodeTitle
+# lines listed twice due to unknown bug at some point.
+
+my $path = '/media/velociraptor1/.meta';
+opendir my $dh, $path or die $!;
+
+for my $file (readdir($dh)) {
+    next if $file eq '.' || $file eq '..';
+    $file = join('/', $path, $file);
+
+    my %actors;
+    my $title = 0;
+    my $part_index = 0;
+    my @lines;
+    open my $in, '<', $file or die $!;
+    while (my $line = <$in>) {
+        chomp $line;
+        # The part index should come before the original air date in the file.
+        if ($line =~ /^partIndex: (\d+)$/) {
+            $part_index += $1;
+        }
+        elsif ($line =~ /^vActor:\s+(.*)$/) {
+            unless ($actors{$1}++) {
+                push @lines, $line;
+            }
+        }
+        elsif ($line =~ /^episodeTitle:/) {
+            unless ($title++) {
+                push @lines, $line;
+            }
+        }
+        elsif ($line =~ /^description/) {
+            $line =~ s/\s*Copyright Tribune Media Services, Inc\.$//;
+            push @lines, $line;
+        }
+        # When two episodes aired the same day, they will have an identical original
+        # air date because the hour, min, sec fields are all zeroes.  Use the part
+        # index to increment the hour field so they'll sort in the correct order.
+        elsif ($line =~ /^originalAirDate: (\d+)-(\d+)-(\d+)T(\d+):(\d+):(\d+)Z$/) {
+            my $year = $1;
+            my $mon = $2;
+            my $day = $3;
+            my $hour = $4;
+            my $min = $5;
+            my $sec = $6;
+
+            # hour, min, sec are always zero, unless this code incremented it based on part index.
+            # I chose to alter hour because it's visible in the tivo ui.
+            if ($hour == 0) {
+                $hour += $part_index;
+            }
+
+            push @lines, sprintf("originalAirDate: %04d-%02d-%02dT%02d:%02d:%02dZ", $year, $mon, $day, $hour, $min, $sec);
+        }
+        else {
+            push @lines, $line;
+        }
+    }
+    close $in or die $!;
+
+    open my $out, '>', $file or die $!;
+    print $out join("\n", @lines);
+    close $out or die $!;
+
+    #last;
+}

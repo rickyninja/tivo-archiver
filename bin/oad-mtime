@@ -1,0 +1,78 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Data::Dumper;
+use Time::Local;
+
+# Set the mtime to the original air date for proper sorting.
+
+my $path = '/media/velociraptor1/.meta';
+opendir my $dh, $path or die $!;
+
+for my $basename (readdir($dh)) {
+    next if $basename eq '.' || $basename eq '..';
+    my $file = join('/', $path, $basename);
+
+    open my $in, '<', $file or die $!;
+    while (my $line = <$in>) {
+        chomp $line;
+        if ($line =~ /^originalAirDate: (\d+)-(\d+)-(\d+)T(\d+):(\d+):(\d+)Z$/) {
+            my $year = $1;
+            my $mon = $2;
+            my $day = $3;
+            my $hour = $4;
+            my $min = $5;
+            my $sec = $6;
+            my $epoch = timegm($sec, $min, $hour, $day, --$mon, $year);
+            my $findit = $basename;
+            $findit =~ s/\.txt$//;
+            set_time($findit, $epoch);
+#            print scalar(localtime($epoch)), ": ";
+#            print +(split m{/}, $file)[-1], "\n";
+        }
+    }
+    close $in or die $!;
+}
+
+sub set_time {
+    my $findit = shift || die 'missing basename';
+    my $epoch = shift || die 'missing epoch';
+
+    my $root = $path;
+    $root =~ s{/\.meta$}{};
+
+    my $found = find($root, $findit);
+    if ($found) {
+        utime($epoch, $epoch, $found) || die "Failed to update timestamp: $!";
+        warn "Updated timestamp for $found\n";
+    }
+    else {
+        warn "Failed to find file $findit!\n";
+    }
+}
+
+sub find { 
+    my $dir = shift;
+    my $findit = shift;
+
+    my $dh;
+    unless (opendir($dh, $dir)) {
+        warn "Failed to opendir $dir: $!";
+        return;
+    }
+
+    for my $basename (readdir($dh)) {
+        next if $basename eq '.' || $basename eq '..';
+        my $file = join('/', $dir, $basename);
+        if (-f $file && $basename eq $findit) {
+            return $file;
+        }
+        elsif (-d $file) {
+            my $found = find($file, $findit);
+            return $found if $found;
+        }
+    }
+    closedir $dh or die "Failed to closedir: $!";
+    return;
+}
