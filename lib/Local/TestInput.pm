@@ -1761,12 +1761,317 @@ my %tvrage_xml = (
     </Season>
   </Episodelist>
 </Show>
-},
+    },
+    being_human => q{<?xml version="1.0" encoding="UTF-8"?>
+<Results>
+  <show>
+    <showid>18434</showid>
+    <name>Being Human (UK)</name>
+    <link>http://www.tvrage.com/Being_Human_UK</link>
+    <country>UK</country>
+    <started>2008</started>
+    <ended>2013</ended>
+    <seasons>5</seasons>
+    <status>Ended</status>
+    <classification>Scripted</classification>
+    <genres>
+      <genre>Drama</genre>
+      <genre>Horror/Supernatural</genre>
+      <genre>Mystery</genre>
+      <genre>Sci-Fi</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>24595</showid>
+    <name>Being Human (US)</name>
+    <link>http://www.tvrage.com/Being_Human_US</link>
+    <country>US</country>
+    <started>2011</started>
+    <ended>0</ended>
+    <seasons>4</seasons>
+    <status>Returning Series</status>
+    <classification>Scripted</classification>
+    <genres>
+      <genre>Action</genre>
+      <genre>Drama</genre>
+      <genre>Family</genre>
+      <genre>Sci-Fi</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>20818</showid>
+    <name>Being Erica</name>
+    <link>http://www.tvrage.com/Being_Erica</link>
+    <country>CA</country>
+    <started>2009</started>
+    <ended>2011</ended>
+    <seasons>4</seasons>
+    <status>Ended</status>
+    <classification>Scripted</classification>
+    <genres>
+      <genre>Comedy</genre>
+      <genre>Drama</genre>
+      <genre>Fantasy</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>32741</showid>
+    <name>Being: Liverpool</name>
+    <link>http://www.tvrage.com/shows/id-32741</link>
+    <country>US</country>
+    <started>2012</started>
+    <ended>0</ended>
+    <seasons>1</seasons>
+    <status>TBD/On The Bubble</status>
+    <classification>Documentary</classification>
+    <genres>
+      <genre>Lifestyle</genre>
+      <genre>Sports</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>35289</showid>
+    <name>Being Mary Jane</name>
+    <link>http://www.tvrage.com/Being_Mary_Jane</link>
+    <country>US</country>
+    <started>2013</started>
+    <ended>0</ended>
+    <seasons>1</seasons>
+    <status>Returning Series</status>
+    <classification>Scripted</classification>
+    <genres>
+      <genre>Comedy</genre>
+      <genre>Drama</genre>
+      <genre>Family</genre>
+      <genre>Romance/Dating</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>34265</showid>
+    <name>Being Eileen</name>
+    <link>http://www.tvrage.com/shows/id-34265</link>
+    <country>UK</country>
+    <started>2013</started>
+    <ended>0</ended>
+    <seasons>1</seasons>
+    <status>TBD/On The Bubble</status>
+    <classification>Scripted</classification>
+    <genres>
+      <genre>Comedy</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>2758</showid>
+    <name>Being Ian</name>
+    <link>http://www.tvrage.com/shows/id-2758</link>
+    <country>CA</country>
+    <started>2005</started>
+    <ended>2008</ended>
+    <seasons>2</seasons>
+    <status>Canceled/Ended</status>
+    <classification>Animation</classification>
+    <genres>
+      <genre>Animation General</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>14487</showid>
+    <name>Being Honest</name>
+    <link>http://www.tvrage.com/shows/id-14487</link>
+    <country>HK</country>
+    <started>2004</started>
+    <ended>2004</ended>
+    <seasons>1</seasons>
+    <status>Canceled/Ended</status>
+    <classification>Scripted</classification>
+    <genres>
+      <genre>Comedy</genre>
+      <genre>Drama</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>2756</showid>
+    <name>Being Bobby Brown</name>
+    <link>http://www.tvrage.com/shows/id-2756</link>
+    <country>US</country>
+    <started>2005</started>
+    <ended>2005</ended>
+    <seasons>1</seasons>
+    <status>Canceled/Ended</status>
+    <classification>Reality</classification>
+    <genres>
+      <genre>Drama</genre>
+      <genre>Family</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>38627</showid>
+    <name>Being Poirot</name>
+    <link>http://www.tvrage.com/shows/id-38627</link>
+    <country>UK</country>
+    <started>2013</started>
+    <ended>2013</ended>
+    <seasons>1</seasons>
+    <status>Canceled/Ended</status>
+    <classification>Documentary</classification>
+    <genres>
+      <genre>Celebrities</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>31890</showid>
+    <name>Being Lara Bingle</name>
+    <link>http://www.tvrage.com/shows/id-31890</link>
+    <country>AU</country>
+    <started>2012</started>
+    <ended>2012</ended>
+    <seasons>1</seasons>
+    <status>Canceled/Ended</status>
+    <classification>Documentary</classification>
+    <genres>
+      <genre>Celebrities</genre>
+      <genre>Lifestyle</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>25976</showid>
+    <name>Being... N-Dubz</name>
+    <link>http://www.tvrage.com/shows/id-25976</link>
+    <country>UK</country>
+    <started>2010</started>
+    <ended>2011</ended>
+    <seasons>2</seasons>
+    <status>Canceled/Ended</status>
+    <classification>Reality</classification>
+    <genres>
+      <genre>Celebrities</genre>
+      <genre>Lifestyle</genre>
+      <genre>Music</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>26790</showid>
+    <name>Being Terry Kennedy</name>
+    <link>http://www.tvrage.com/shows/id-26790</link>
+    <country>US</country>
+    <started>2010</started>
+    <ended>2010</ended>
+    <seasons>1</seasons>
+    <status>Canceled/Ended</status>
+    <classification>Reality</classification>
+    <genres></genres>
+  </show>
+  <show>
+    <showid>34152</showid>
+    <name>Super Human Challenge</name>
+    <link>http://www.tvrage.com/shows/id-34152</link>
+    <country>UK</country>
+    <started>2013</started>
+    <ended>0</ended>
+    <seasons>1</seasons>
+    <status>New Series</status>
+    <classification>Documentary</classification>
+    <genres>
+      <genre>Children</genre>
+      <genre>Fitness</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>2757</showid>
+    <name>Being Eve</name>
+    <link>http://www.tvrage.com/shows/id-2757</link>
+    <country>NZ</country>
+    <started>2001</started>
+    <ended>2002</ended>
+    <seasons>2</seasons>
+    <status>Canceled/Ended</status>
+    <classification>0</classification>
+    <genres></genres>
+  </show>
+  <show>
+    <showid>37687</showid>
+    <name>Being</name>
+    <link>http://www.tvrage.com/shows/id-37687</link>
+    <country>US</country>
+    <started>2013</started>
+    <ended>0</ended>
+    <seasons>1</seasons>
+    <status>TBD/On The Bubble</status>
+    <classification>Documentary</classification>
+    <genres>
+      <genre>Sports</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>25208</showid>
+    <name>Being John Daly</name>
+    <link>http://www.tvrage.com/Being_John_Daly</link>
+    <country>US</country>
+    <started>2010</started>
+    <ended>0</ended>
+    <seasons>1</seasons>
+    <status>New Series</status>
+    <classification>Sports</classification>
+    <genres>
+      <genre>Action</genre>
+      <genre>Celebrities</genre>
+      <genre>Educational</genre>
+      <genre>Family</genre>
+      <genre>How To/Do It Yourself</genre>
+      <genre>Sports</genre>
+      <genre>Talent</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>707</showid>
+    <name>Being April</name>
+    <link>http://www.tvrage.com/shows/id-707</link>
+    <country>UK</country>
+    <started>2002</started>
+    <ended>2002</ended>
+    <seasons>1</seasons>
+    <status>Canceled/Ended</status>
+    <classification>0</classification>
+    <genres></genres>
+  </show>
+  <show>
+    <showid>32113</showid>
+    <name>Guts: The Strange And Mysterious World Of The Human Stomach</name>
+    <link>http://www.tvrage.com/shows/id-32113</link>
+    <country>UK</country>
+    <started>2012</started>
+    <ended>2012</ended>
+    <seasons>1</seasons>
+    <status>TBD/On The Bubble</status>
+    <classification>Documentary</classification>
+    <genres>
+      <genre>Discovery/Science</genre>
+      <genre>Medical</genre>
+    </genres>
+  </show>
+  <show>
+    <showid>34682</showid>
+    <name>Being Mandela</name>
+    <link>http://www.tvrage.com/shows/id-34682</link>
+    <country>US</country>
+    <started>2013</started>
+    <ended>0</ended>
+    <seasons>1</seasons>
+    <status>New Series</status>
+    <classification>Reality</classification>
+    <genres>
+      <genre>Family</genre>
+      <genre>History</genre>
+      <genre>Lifestyle</genre>
+    </genres>
+  </show>
+</Results>
+    },
 );
 
 my %tivo_xml = (
     smallville => {
-        vortex => q{<?xml version="1.0" encoding="utf-8"?>
+        201 => q{<?xml version="1.0" encoding="utf-8"?>
 <TvBusMarshalledStruct:TvBusEnvelope xmlns:TvBusDateTime="http://tivo.com/developer/xml/idl/TvBusDateTime" xmlns:TvBusDuration="http://tivo.com/developer/xml/idl/TvBusDuration" xmlns:TvBusMarshalledStruct="http://tivo.com/developer/xml/idl/TvBusMarshalledStruct" xmlns:TvDbBitstreamFormat="http://tivo.com/developer/xml/idl/TvDbBitstreamFormat" xmlns:TvDbColorCode="http://tivo.com/developer/xml/idl/TvDbColorCode" xmlns:TvDbRecordQuality="http://tivo.com/developer/xml/idl/TvDbRecordQuality" xmlns:TvDbShowType="http://tivo.com/developer/xml/idl/TvDbShowType" xmlns:TvDbShowingBit="http://tivo.com/developer/xml/idl/TvDbShowingBit" xmlns:TvDbTvRating="http://tivo.com/developer/xml/idl/TvDbTvRating" xmlns:TvPgdChannel="http://tivo.com/developer/xml/idl/TvPgdChannel" xmlns:TvPgdProgram="http://tivo.com/developer/xml/idl/TvPgdProgram" xmlns:TvPgdRecording="http://tivo.com/developer/xml/idl/TvPgdRecording" xmlns:TvPgdSeries="http://tivo.com/developer/xml/idl/TvPgdSeries" xmlns:TvPgdShowing="http://tivo.com/developer/xml/idl/TvPgdShowing" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:schemaLocation="http://tivo.com/developer/xml/idl/TvBusMarshalledStruct TvBusMarshalledStruct.xsd http://tivo.com/developer/xml/idl/TvPgdRecording TvPgdRecording.xsd http://tivo.com/developer/xml/idl/TvBusDuration TvBusDuration.xsd http://tivo.com/developer/xml/idl/TvPgdShowing TvPgdShowing.xsd http://tivo.com/developer/xml/idl/TvDbShowingBit TvDbShowingBit.xsd http://tivo.com/developer/xml/idl/TvBusDateTime TvBusDateTime.xsd http://tivo.com/developer/xml/idl/TvPgdProgram TvPgdProgram.xsd http://tivo.com/developer/xml/idl/TvDbColorCode TvDbColorCode.xsd http://tivo.com/developer/xml/idl/TvPgdSeries TvPgdSeries.xsd http://tivo.com/developer/xml/idl/TvDbShowType TvDbShowType.xsd http://tivo.com/developer/xml/idl/TvDbTvRating TvDbTvRating.xsd http://tivo.com/developer/xml/idl/TvDbRecordQuality TvDbRecordQuality.xsd http://tivo.com/developer/xml/idl/TvPgdChannel TvPgdChannel.xsd http://tivo.com/developer/xml/idl/TvDbBitstreamFormat TvDbBitstreamFormat.xsd" xs:type="TvPgdRecording:TvPgdRecording">
   <recordedDuration>PT59M52S</recordedDuration>
   <vActualShowing>
@@ -1902,6 +2207,140 @@ my %tivo_xml = (
   </showing>
   <startTime>2014-01-16T13:59:58Z</startTime>
   <stopTime>2014-01-16T14:59:59Z</stopTime>
+  <bitstreamFormat>
+    <vFormat>
+      <element>
+        <vByte>
+          <base64>EjQAAwABAjoBywxXAAAADwAAAAQAAAACAAAAAwAAAA==</base64>
+        </vByte>
+      </element>
+    </vFormat>
+  </bitstreamFormat>
+  <expirationTime>2038-01-19T00:00:00Z</expirationTime>
+</TvBusMarshalledStruct:TvBusEnvelope>
+        },
+    },
+    being_human => {
+        401 => q{<?xml version="1.0" encoding="utf-8"?>
+<TvBusMarshalledStruct:TvBusEnvelope xmlns:TvBusDateTime="http://tivo.com/developer/xml/idl/TvBusDateTime" xmlns:TvBusDuration="http://tivo.com/developer/xml/idl/TvBusDuration" xmlns:TvBusMarshalledStruct="http://tivo.com/developer/xml/idl/TvBusMarshalledStruct" xmlns:TvDbBitstreamFormat="http://tivo.com/developer/xml/idl/TvDbBitstreamFormat" xmlns:TvDbColorCode="http://tivo.com/developer/xml/idl/TvDbColorCode" xmlns:TvDbRecordQuality="http://tivo.com/developer/xml/idl/TvDbRecordQuality" xmlns:TvDbShowType="http://tivo.com/developer/xml/idl/TvDbShowType" xmlns:TvDbShowingBit="http://tivo.com/developer/xml/idl/TvDbShowingBit" xmlns:TvPgdChannel="http://tivo.com/developer/xml/idl/TvPgdChannel" xmlns:TvPgdProgram="http://tivo.com/developer/xml/idl/TvPgdProgram" xmlns:TvPgdRecording="http://tivo.com/developer/xml/idl/TvPgdRecording" xmlns:TvPgdSeries="http://tivo.com/developer/xml/idl/TvPgdSeries" xmlns:TvPgdShowing="http://tivo.com/developer/xml/idl/TvPgdShowing" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:schemaLocation="http://tivo.com/developer/xml/idl/TvBusMarshalledStruct TvBusMarshalledStruct.xsd http://tivo.com/developer/xml/idl/TvPgdRecording TvPgdRecording.xsd http://tivo.com/developer/xml/idl/TvBusDuration TvBusDuration.xsd http://tivo.com/developer/xml/idl/TvPgdShowing TvPgdShowing.xsd http://tivo.com/developer/xml/idl/TvDbShowingBit TvDbShowingBit.xsd http://tivo.com/developer/xml/idl/TvBusDateTime TvBusDateTime.xsd http://tivo.com/developer/xml/idl/TvPgdProgram TvPgdProgram.xsd http://tivo.com/developer/xml/idl/TvDbColorCode TvDbColorCode.xsd http://tivo.com/developer/xml/idl/TvPgdSeries TvPgdSeries.xsd http://tivo.com/developer/xml/idl/TvDbShowType TvDbShowType.xsd http://tivo.com/developer/xml/idl/TvDbRecordQuality TvDbRecordQuality.xsd http://tivo.com/developer/xml/idl/TvPgdChannel TvPgdChannel.xsd http://tivo.com/developer/xml/idl/TvDbBitstreamFormat TvDbBitstreamFormat.xsd" xs:type="TvPgdRecording:TvPgdRecording">
+  <recordedDuration>PT1H1S</recordedDuration>
+  <vActualShowing>
+    <element>
+      <showingBits value="1024">LETTERBOX</showingBits>
+      <time>2014-01-14T05:00:00Z</time>
+      <duration>PT1H</duration>
+      <program>
+        <vActor>
+          <element>Witwer|Sam</element>
+          <element>Huntington|Sam</element>
+          <element>Rath|Meaghan</element>
+          <element>Hager|Kristen</element>
+        </vActor>
+        <vAdvisory/>
+        <vChoreographer/>
+        <colorCode value="4">COLOR</colorCode>
+        <description>Josh is trapped inside his wolf as Nora and Aidan struggle to contain him; Sally finds herself imprisoned in a mysterious place with Donna. Copyright Tribune Media Services, Inc.</description>
+        <vDirector>
+          <element>Kane|Adam</element>
+        </vDirector>
+        <episodeNumber>401</episodeNumber>
+        <episodeTitle>Old Dogs, New Tricks</episodeTitle>
+        <vExecProducer>
+          <element>Fricke|Anna</element>
+          <element>Prupas|Michael</element>
+          <element>Pursey|Rob</element>
+          <element>Whithouse|Toby</element>
+          <element>Pleszczynski|Stefan</element>
+        </vExecProducer>
+        <vProgramGenre>
+          <element>Drama</element>
+          <element>Fantasy</element>
+          <element>Paranormal</element>
+        </vProgramGenre>
+        <vGuestStar/>
+        <vHost/>
+        <isEpisode>true</isEpisode>
+        <originalAirDate>2014-01-13T00:00:00Z</originalAirDate>
+        <vProducer/>
+        <series>
+          <isEpisodic>true</isEpisodic>
+          <vSeriesGenre>
+            <element>Drama</element>
+            <element>Fantasy</element>
+            <element>Paranormal</element>
+            <element>Interests</element>
+            <element>Drama</element>
+            <element>Sci-Fi and Fantasy</element>
+          </vSeriesGenre>
+          <seriesTitle>Being Human</seriesTitle>
+        </series>
+        <showType value="5">SERIES</showType>
+        <title>Being Human</title>
+        <vWriter/>
+      </program>
+    </element>
+  </vActualShowing>
+  <vBookmark/>
+  <recordingQuality value="75">HIGH</recordingQuality>
+  <showing>
+    <showingBits value="1024">LETTERBOX</showingBits>
+    <time>2014-01-14T05:00:00Z</time>
+    <duration>PT1H</duration>
+    <program>
+      <vActor>
+        <element>Witwer|Sam</element>
+        <element>Huntington|Sam</element>
+        <element>Rath|Meaghan</element>
+        <element>Hager|Kristen</element>
+      </vActor>
+      <vAdvisory/>
+      <vChoreographer/>
+      <colorCode value="4">COLOR</colorCode>
+      <description>Josh is trapped inside his wolf as Nora and Aidan struggle to contain him; Sally finds herself imprisoned in a mysterious place with Donna. Copyright Tribune Media Services, Inc.</description>
+      <vDirector>
+        <element>Kane|Adam</element>
+      </vDirector>
+      <episodeNumber>401</episodeNumber>
+      <episodeTitle>Old Dogs, New Tricks</episodeTitle>
+      <vExecProducer>
+        <element>Fricke|Anna</element>
+        <element>Prupas|Michael</element>
+        <element>Pursey|Rob</element>
+        <element>Whithouse|Toby</element>
+        <element>Pleszczynski|Stefan</element>
+      </vExecProducer>
+      <vProgramGenre>
+        <element>Drama</element>
+        <element>Fantasy</element>
+        <element>Paranormal</element>
+      </vProgramGenre>
+      <vGuestStar/>
+      <vHost/>
+      <isEpisode>true</isEpisode>
+      <originalAirDate>2014-01-13T00:00:00Z</originalAirDate>
+      <vProducer/>
+      <series>
+        <isEpisodic>true</isEpisodic>
+        <vSeriesGenre>
+          <element>Drama</element>
+          <element>Fantasy</element>
+          <element>Paranormal</element>
+          <element>Interests</element>
+          <element>Drama</element>
+          <element>Sci-Fi and Fantasy</element>
+        </vSeriesGenre>
+        <seriesTitle>Being Human</seriesTitle>
+      </series>
+      <showType value="5">SERIES</showType>
+      <title>Being Human</title>
+      <vWriter/>
+    </program>
+    <channel>
+      <callsign/>
+    </channel>
+  </showing>
+  <startTime>2014-01-14T04:59:58Z</startTime>
+  <stopTime>2014-01-14T06:00:01Z</stopTime>
   <bitstreamFormat>
     <vFormat>
       <element>
