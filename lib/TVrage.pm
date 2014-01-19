@@ -64,30 +64,7 @@ around 'get_episodes' => sub {
     my $self = shift;
 
     my $xml = $self->$orig(@_);
-
-    my $parser = XML::LibXML->new;
-    my $doc = $parser->load_xml( string => $xml );
-
-    my @episodes;
-    for my $item ($doc->findnodes('/Show/Episodelist')) {
-        for my $season ($item->findnodes('Season')) {
-            for my $ep ($season->findnodes('episode')) {
-                my $arg = {
-                    season    => $season->findvalue('@no'),
-                    epnum     => $ep->findvalue('epnum'),
-                    seasonnum => $ep->findvalue('seasonnum'),
-                    prodnum   => $ep->findvalue('prodnum'),
-                    airdate   => $ep->findvalue('airdate'),
-                    link      => $ep->findvalue('link'),
-                    title     => $ep->findvalue('title'),
-                };
-                my $episode = TVrage::Episode->new($arg);
-                push @episodes, $episode;
-            }
-        }
-    }
-
-    return wantarray ? @episodes : \@episodes;
+    return $self->get_episodes_obj_from_xml($xml);
 };
 
 around 'get_show' => sub {
@@ -122,6 +99,35 @@ around 'get_show' => sub {
 
     confess 'Failed to match show in tvrage!';
 };
+
+sub get_episodes_obj_from_xml {
+    my $self = shift;
+    my $xml = shift || confess 'missing xml';
+
+    my $parser = XML::LibXML->new;
+    my $doc = $parser->load_xml( string => $xml );
+
+    my @episodes;
+    for my $item ($doc->findnodes('/Show/Episodelist')) {
+        for my $season ($item->findnodes('Season')) {
+            for my $ep ($season->findnodes('episode')) {
+                my $arg = {
+                    season    => $season->findvalue('@no'),
+                    epnum     => $ep->findvalue('epnum'),
+                    seasonnum => $ep->findvalue('seasonnum'),
+                    prodnum   => $ep->findvalue('prodnum'),
+                    airdate   => $ep->findvalue('airdate'),
+                    link      => $ep->findvalue('link'),
+                    title     => $ep->findvalue('title'),
+                };
+                my $episode = TVrage::Episode->new($arg);
+                push @episodes, $episode;
+            }
+        }
+    }
+
+    return wantarray ? @episodes : \@episodes;
+}
 
 sub get_show {
     my $self = shift;

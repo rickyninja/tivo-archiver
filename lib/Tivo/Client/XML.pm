@@ -9,7 +9,10 @@ around [qw(query_item)] => sub {
     my $orig = shift;
     my $self = shift;
     
-    my $doc = $self->remove_bad_xmlns( $self->$orig(@_) );
+    my $xml = $self->$orig(@_);
+    $xml = $self->remove_bad_xmlns( $self->$orig(@_) );
+    my $parser = XML::LibXML->new;
+    my $doc = $parser->load_xml( string => $xml );
     #print $doc->toString; exit;
 
     my %detail;
@@ -25,7 +28,105 @@ around [qw(get_details)] => sub {
     my $orig = shift;
     my $self = shift;
 
-    my $doc = $self->remove_bad_xmlns( $self->$orig(@_) );
+    my $xml = $self->$orig(@_);
+    return $self->get_detail_obj_from_xml($xml);
+};
+
+around [qw(query_container)] => sub {
+    my $orig = shift;
+    my $self = shift;
+    
+    my $xml = $self->$orig(@_);
+    return $self->get_containeritem_obj_from_xml($xml);
+};
+
+sub get_containeritem_obj_from_xml {
+    my $self = shift;
+    my $xml = shift || confess 'missing xml';
+
+    $xml = $self->remove_bad_xmlns($xml);
+    my $parser = XML::LibXML->new;
+    my $doc = $parser->load_xml( string => $xml );
+    my @items;
+
+    for my $item ($doc->findnodes('/TiVoContainer/Item')) {
+        my $content_type = $item->findvalue('Details/ContentType');
+        next if $content_type eq 'x-tivo-container/folder';
+
+        my $ci = Tivo::ContainerItem->new;
+
+        my $in_progress = $item->findvalue('Details/InProgress');
+        $ci->in_progress(1) if lc($in_progress) eq 'yes';
+
+        $ci->content_type($content_type) if $content_type;
+
+        my $source_format = $item->findvalue('Details/SourceFormat');
+        $ci->source_format($source_format) if $source_format;
+
+        my $title = $item->findvalue('Details/Title');
+        $ci->title($title) if $title;
+
+        my $source_size = $item->findvalue('Details/SourceSize');
+        $ci->source_size($source_size) if $source_size;
+
+        my $duration = $item->findvalue('Details/Duration');
+        $ci->duration($duration) if $duration;
+
+        my $capture_date = $item->findvalue('Details/CaptureDate');
+        $ci->capture_date($capture_date) if $capture_date;
+
+        my $episode_title = $item->findvalue('Details/EpisodeTitle');
+        $ci->episode_title($episode_title) if $episode_title;
+
+        my $description = $item->findvalue('Details/Description');
+        $ci->description($description) if $description;
+
+        my $source_channel = $item->findvalue('Details/SourceChannel');
+        $ci->source_channel($source_channel) if $source_channel;
+
+        my $source_station = $item->findvalue('Details/SourceStation');
+        $ci->source_station($source_station) if $source_station;
+
+        my $high_definition = $item->findvalue('Details/HighDefinition');
+        $ci->high_definition($high_definition) if $high_definition;
+
+        my $program_id = $item->findvalue('Details/ProgramId');
+        $ci->program_id($program_id) if $program_id;
+
+        my $series_id = $item->findvalue('Details/SeriesId');
+        $ci->series_id($series_id) if $series_id;
+
+        my $episode_number = $item->findvalue('Details/EpisodeNumber');
+        $ci->episode_number($episode_number) if $episode_number;
+
+        my $byte_offset = $item->findvalue('Details/ByteOffset');
+        $ci->byte_offset($byte_offset);
+
+        my $content_url = $item->findvalue('Links/Content/Url');
+        $ci->content_url($content_url) if $content_url;
+
+        my $content_type_url = $item->findvalue('Links/Content/ContentType');
+        $ci->content_type_url($content_type_url) if $content_type_url;
+
+        my $custom_icon_url = $item->findvalue('Links/CustomIcon/Url');
+        $ci->custom_icon_url($custom_icon_url) if $custom_icon_url;
+
+        my $video_details_url = $item->findvalue('Links/TiVoVideoDetails/Url');
+        $ci->video_details_url($video_details_url) if $video_details_url;
+
+        push @items, $ci;
+    }
+    return \@items;
+}
+
+sub get_detail_obj_from_xml {
+    my $self = shift;
+    my $xml = shift || confess 'missing doc';
+
+    $xml = $self->remove_bad_xmlns($xml);
+    my $parser = XML::LibXML->new;
+    my $doc = $parser->load_xml( string => $xml );
+
     my $detail = Tivo::VideoDetails->new;
 
     my $is_episode = $doc->findvalue('//showing/program/isEpisode');
@@ -126,91 +227,13 @@ around [qw(get_details)] => sub {
     return $detail;
 };
     
-around [qw(query_container)] => sub {
-    my $orig = shift;
-    my $self = shift;
-    
-    my $doc = $self->remove_bad_xmlns( $self->$orig(@_) );
-    my @items;
-    for my $item ($doc->findnodes('/TiVoContainer/Item')) {
-        my $content_type = $item->findvalue('Details/ContentType');
-        next if $content_type eq 'x-tivo-container/folder';
-
-        my $ci = Tivo::ContainerItem->new;
-
-        my $in_progress = $item->findvalue('Details/InProgress');
-        $ci->in_progress(1) if lc($in_progress) eq 'yes';
-
-        $ci->content_type($content_type) if $content_type;
-
-        my $source_format = $item->findvalue('Details/SourceFormat');
-        $ci->source_format($source_format) if $source_format;
-
-        my $title = $item->findvalue('Details/Title');
-        $ci->title($title) if $title;
-
-        my $source_size = $item->findvalue('Details/SourceSize');
-        $ci->source_size($source_size) if $source_size;
-
-        my $duration = $item->findvalue('Details/Duration');
-        $ci->duration($duration) if $duration;
-
-        my $capture_date = $item->findvalue('Details/CaptureDate');
-        $ci->capture_date($capture_date) if $capture_date;
-
-        my $episode_title = $item->findvalue('Details/EpisodeTitle');
-        $ci->episode_title($episode_title) if $episode_title;
-
-        my $description = $item->findvalue('Details/Description');
-        $ci->description($description) if $description;
-
-        my $source_channel = $item->findvalue('Details/SourceChannel');
-        $ci->source_channel($source_channel) if $source_channel;
-
-        my $source_station = $item->findvalue('Details/SourceStation');
-        $ci->source_station($source_station) if $source_station;
-
-        my $high_definition = $item->findvalue('Details/HighDefinition');
-        $ci->high_definition($high_definition) if $high_definition;
-
-        my $program_id = $item->findvalue('Details/ProgramId');
-        $ci->program_id($program_id) if $program_id;
-
-        my $series_id = $item->findvalue('Details/SeriesId');
-        $ci->series_id($series_id) if $series_id;
-
-        my $episode_number = $item->findvalue('Details/EpisodeNumber');
-        $ci->episode_number($episode_number) if $episode_number;
-
-        my $byte_offset = $item->findvalue('Details/ByteOffset');
-        $ci->byte_offset($byte_offset);
-
-        my $content_url = $item->findvalue('Links/Content/Url');
-        $ci->content_url($content_url) if $content_url;
-
-        my $content_type_url = $item->findvalue('Links/Content/ContentType');
-        $ci->content_type_url($content_type_url) if $content_type_url;
-
-        my $custom_icon_url = $item->findvalue('Links/CustomIcon/Url');
-        $ci->custom_icon_url($custom_icon_url) if $custom_icon_url;
-
-        my $video_details_url = $item->findvalue('Links/TiVoVideoDetails/Url');
-        $ci->video_details_url($video_details_url) if $video_details_url;
-
-        push @items, $ci;
-    }
-    return \@items;
-};
-
 # XML::LibXML doesn't work unless the xmlns attribute is removed.
 sub remove_bad_xmlns {
     my $self = shift;
     my $xml = shift || confess 'missing xml!';
 
     $xml =~ s{xmlns=["'][^"']+["']}{}g;
-    my $parser = XML::LibXML->new;
-    my $doc = $parser->load_xml( string => $xml );
-    return $doc;
+    return $xml;
 }
 
 

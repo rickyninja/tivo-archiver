@@ -19,13 +19,30 @@ sub get_filename {
     my $video = shift || die 'missing details';
 
     my $detail = $video->video_details;
-    my $ep_num = $detail->episode_number;
-
     my $filename = $detail->title;
-    if ($detail->is_episodic) {
-        $ep_num = join('x', $ep_num =~ /^(\d+)(\d{2})$/) if $ep_num;
+    my $ep_num;
 
-        my $s_ep = $self->get_episode_tivo($detail) || $ep_num || '0x00';
+    if ($detail->is_episodic) {
+        my $rage = $self->rage;
+        my $rtv_show = eval { $rage->get_show($detail->title) } or do {
+            my $e = $@;
+            if ($e =~ /^Failed to match show in tvrage!/) {
+                # Some shows have several candidates in the tvrage api, and no data
+                # in the tivo to disambiguate the candidates (Being Human for example).
+                # If the episode_number is all digits, it's hopefully accurate.
+                $ep_num = join('x', $detail->episode_number =~ /^(\d{1,})(\d{2})$/);
+            }
+            else {
+                die;
+            }
+        };
+
+        my $s_ep;
+        if ($rtv_show) {
+            my $episodes = $rage->get_episodes($rtv_show->showid);
+            $s_ep = $self->get_episode_tivo($detail, $episodes) || $ep_num || '0x00';
+        }
+
         (my $episode_number = $s_ep) =~ s/x//;
         $detail->episode_number($episode_number);
         $filename .= " $s_ep-" . $detail->episode_title;
@@ -37,30 +54,12 @@ sub get_filename {
 sub get_episode_tivo {
     my $self = shift;
     my $detail = shift || confess 'missing detail';
+    my $episodes = shift || confess 'missing episodes';
 
-    my $title = $detail->title;
     my $episode_title = $detail->episode_title;
 
-    my $rage = $self->rage;
-    my $rtv_show = eval { $rage->get_show($title) } or do {
-        my $e = $@;
-        # Some shows have several candidates in the tvrage api, and no data
-        # in the tivo to disambiguate the candidates (Being Human for example).
-        # If the episode_number is all digits, it's hopefully accurate.
-        if ($e =~ /^Failed to match show in tvrage!/) {
-            if ($detail->episode_number =~ /^(\d{1,})(\d{2})$/) {
-                return join('x', $1, $2);
-            }
-            else {
-                die;
-            }
-        }
-    };
-
-    my @episodes = $rage->get_episodes($rtv_show->showid);
-
     for (my $desperate = 0; $desperate <= 3; $desperate++) {
-        for my $episode (@episodes) {
+        for my $episode (@$episodes) {
             my $sea_num = $episode->season;
             my $rage_title = $episode->title;
             my $tivo_title = $episode_title;
@@ -92,10 +91,10 @@ sub get_episode_tivo {
                 return join('x', $sea_num, $ep_num);
             }
             # match against production code (Charmed)
-            elsif ($detail->episode_number && $episode->prodnum) {
-                if ($detail->episode_number eq $episode->prodnum) {
-                    return join('x', $sea_num, $ep_num);
-                }
+            elsif ($detail->episode_number && $episode->prodnum
+                && $detail->episode_number eq $episode->prodnum
+            ) {
+                return join('x', $sea_num, $ep_num);
             }
             # exact title match if you add part_index inside parens to tivo title
             elsif ($detail->has_part_index && $desperate == 0) {
