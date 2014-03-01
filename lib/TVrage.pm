@@ -30,6 +30,11 @@ has base_uri => (
     default => 'http://services.tvrage.com',
 );
 
+has region => (
+    is => 'rw',
+    isa => 'Str',
+);
+
 # I initially set the cache to never expire.  I don't think the code
 # would be able to get episodes that aired after the cache was stored unless
 # the cache is allowed to expire.
@@ -76,15 +81,20 @@ around 'get_show' => sub {
 
     my $parser = XML::LibXML->new;
     my $doc = $parser->load_xml( string => $xml );
+    my $region = $self->region;
 
-    for my $item ($doc->findnodes('/Results/show')) {
-        my $name = $item->findvalue('name');
-        if ($name eq $show_name) {
+    # Lost Girl is listed as CA country in tvrage, and so my configured region of US
+    # will not match.  Lost Girl has only aired in CA though, so you can get a string
+    # equality match on the 2nd $retry (the old behavior).
+    for (my $retry = 0; $retry <= 1; $retry++) {
+        for my $item ($doc->findnodes('/Results/show')) {
+            my $name = $item->findvalue('name');
+            my $country = $item->findvalue('country');
             my $arg = {
                 showid         => $item->findvalue('showid'),
                 name           => $name,
                 link           => $item->findvalue('link'),
-                country        => $item->findvalue('country'),
+                country        => $country,
                 started        => $item->findvalue('started'),
                 ended          => $item->findvalue('ended'),
                 seasons        => $item->findvalue('seasons'),
@@ -93,7 +103,19 @@ around 'get_show' => sub {
                 genres => [ map { $_->to_literal } $item->findnodes('genres/genre') ],
             };
             my $show = TVrage::Show->new($arg);
-            return $show;
+
+            if ($region && $retry < 1) {
+                # substring match because $show_name could look like "Wilfred" or "Wilfred (US)"
+                if ($region eq $country && $name =~ /^\Q$show_name\E/) {
+                    return $show;
+                }
+            }
+            # Attempt an exact title match if $region is not set or $retry > 0.
+            else {
+                if ($name eq $show_name) {
+                    return $show;
+                }
+            }
         }
     }
 

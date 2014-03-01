@@ -1,0 +1,11 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Pod::Markdown;
+
+my $file = shift || die 'missing file with pod';
+open my $in, '<', $file or die "Failed to open $file for read: $!";
+my $parser = Pod::Markdown->new;
+$parser->parse_from_filehandle($in);
+print $parser->as_markdown;

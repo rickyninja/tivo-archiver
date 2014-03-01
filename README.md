@@ -65,5 +65,8 @@ at about 1.6 GB, where Best quality weighs in around 2.6 GB.
 - Same show, different region
 
 Being Human has US and UK versions, and I don't see anything in the tivo data to match the region.
-Luckily Being Human already has correct episode number in tivo data (instead of the production code
-or incorrect data).  Other shows may not be so lucky, but there's nothing to be done about it presently.
+To work around this problem, you can configure your region in /etc/tivo-archiver.yml.  The value for 
+this attribute is used to match the country attribute in the tvrage api.
+
+If a show already has correct episode number in tivo data (instead of the production code
+or incorrect data), this will be used as a last resort as it tends to be less reliable.
