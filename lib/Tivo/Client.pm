@@ -3,6 +3,7 @@ package Tivo::Client;
 use namespace::autoclean;
 use Moose;
 use Moose::Util::TypeConstraints;
+use IO::Socket::SSL;
 use LWP;
 use URI::Escape;
 use Cache::File;
@@ -194,7 +195,11 @@ sub _base_uri_builder {
 sub _lwp_builder {
     my $self = shift;
 
-    my $lwp = LWP::UserAgent->new( 'ssl_opts' => { 'verify_hostname' => 0 } );
+    my $lwp = LWP::UserAgent->new(
+        ssl_opts => {
+            'verify_hostname' => 0,
+            SSL_verify_mode => IO::Socket::SSL::SSL_VERIFY_NONE,
+        });
     $lwp->agent( __PACKAGE__ );
 
     $lwp->cookie_jar( {} ); # Without cookies, you'll get http 400 bad request for downloads.
