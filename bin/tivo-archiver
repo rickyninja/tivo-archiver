@@ -57,7 +57,6 @@ my $tivo = Tivo::Client->new(
     tivo_host => $conf->{tivo_host},
     use_cache => $use_cache,
 );
-$tivo->lwp->timeout(10);
 
 my $util = Tivo::Util->new;
 if (exists $conf->{region}) {
