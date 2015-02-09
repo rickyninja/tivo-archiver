@@ -314,11 +314,12 @@ sub log_error {
 
 sub get_config {
     if (-f $conf_file) {
-        return eval { LoadFile($conf_file); } or do {
+        my $conf = eval { LoadFile($conf_file); } or do {
             my $e = $@;
             log_error($e);
             exit 1;
         };
+        return $conf;
     }
     else {
         return configure();
