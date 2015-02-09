@@ -81,45 +81,28 @@ around 'get_show' => sub {
 
     my $parser = XML::LibXML->new;
     my $doc = $parser->load_xml( string => $xml );
-    my $region = $self->region;
 
-    # Lost Girl is listed as CA country in tvrage, and so my configured region of US
-    # will not match.  Lost Girl has only aired in CA though, so you can get a string
-    # equality match on the 2nd $retry (the old behavior).
-    for (my $retry = 0; $retry <= 1; $retry++) {
-        for my $item ($doc->findnodes('/Results/show')) {
-            my $name = $item->findvalue('name');
-            my $country = $item->findvalue('country');
-            my $arg = {
-                showid         => $item->findvalue('showid'),
-                name           => $name,
-                link           => $item->findvalue('link'),
-                country        => $country,
-                started        => $item->findvalue('started'),
-                ended          => $item->findvalue('ended'),
-                seasons        => $item->findvalue('seasons'),
-                status         => $item->findvalue('status'),
-                classification => $item->findvalue('classification'),
-                genres => [ map { $_->to_literal } $item->findnodes('genres/genre') ],
-            };
-            my $show = TVrage::Show->new($arg);
-
-            if ($region && $retry < 1) {
-                # substring match because $show_name could look like "Wilfred" or "Wilfred (US)"
-                if ($region eq $country && $name =~ /^\Q$show_name\E/) {
-                    return $show;
-                }
-            }
-            # Attempt an exact title match if $region is not set or $retry > 0.
-            else {
-                if ($name eq $show_name) {
-                    return $show;
-                }
-            }
-        }
+    my @shows;
+    for my $item ($doc->findnodes('/Results/show')) {
+        my $name = $item->findvalue('name');
+        my $country = $item->findvalue('country');
+        my $arg = {
+            showid         => $item->findvalue('showid'),
+            name           => $name,
+            link           => $item->findvalue('link'),
+            country        => $country,
+            started        => $item->findvalue('started'),
+            ended          => $item->findvalue('ended'),
+            seasons        => $item->findvalue('seasons'),
+            status         => $item->findvalue('status'),
+            classification => $item->findvalue('classification'),
+            genres => [ map { $_->to_literal } $item->findnodes('genres/genre') ],
+        };
+        my $show = TVrage::Show->new($arg);
+        push @shows, $show;
     }
 
-    confess 'Failed to match show in tvrage!';
+    return @shows;
 };
 
 sub get_episodes_obj_from_xml {
@@ -149,6 +132,39 @@ sub get_episodes_obj_from_xml {
     }
 
     return wantarray ? @episodes : \@episodes;
+}
+
+sub find_show {
+    my $self = shift;
+    my $show_name = shift;
+
+    my $region = $self->region;
+    my @shows = $self->get_show($show_name);
+
+    # Lost Girl is listed as CA country in tvrage, and so my configured region of US
+    # will not match.  Lost Girl has only aired in CA though, so you can get a string
+    # equality match on the 2nd $retry (the old behavior).
+    for (my $retry = 0; $retry <= 1; $retry++) {
+        for my $show (@shows) {
+            my $name = $show->name;
+            my $country = $show->country;
+
+            if ($region && $retry < 1) {
+                # substring match because $show_name could look like "Wilfred" or "Wilfred (US)"
+                if ($region eq $country && $name =~ /^\Q$show_name\E/) {
+                    return $show;
+                }
+            }
+            # Attempt an exact title match if $region is not set or $retry > 0.
+            else {
+                if ($name eq $show_name) {
+                    return $show;
+                }
+            }
+        }
+    }
+
+    confess 'Failed to match show in tvrage!';
 }
 
 sub get_show {

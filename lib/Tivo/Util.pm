@@ -23,7 +23,7 @@ sub get_filename {
 
     if ($detail->is_episodic) {
         my $rage = $self->rage;
-        my $rtv_show = eval { $rage->get_show($detail->title) } or do {
+        my $rtv_show = eval { $rage->find_show($detail->title) } or do {
             my $e = $@;
             if ($e !~ /^Failed to match show in tvrage!/) {
                 die;

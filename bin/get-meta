@@ -1,0 +1,137 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use lib "$ENV{HOME}/lib";
+use Data::Dumper;
+use TVrage;
+use Tivo::VideoDetails;
+use Tivo::ContainerItem;
+use Tivo::Util;
+
+
+my $rage = TVrage->new;
+my $util = Tivo::Util->new;
+
+my $showname;
+my $videofile = shift || help();
+my $showname_regex = qr{^(.+)\s+\d+x\d+};
+if (-d $videofile) {
+    opendir my $dh, $videofile or die "Failed to opendir: $!";
+    while (my $file = readdir $dh) {
+        next unless -f $file;
+        ($showname) = $file =~ /$showname_regex/;
+        next unless $showname;
+        do_meta($showname, $file);
+    }
+    closedir $dh or die "Failed to closedir: $!";
+} elsif (-f $videofile) {
+    ($showname) = $videofile =~ /$showname_regex/;
+    die "Failed to match showname from video filename" unless $showname;
+    do_meta($showname, $videofile);
+} else {
+    help();
+}
+
+
+
+
+sub do_meta {
+    my $showname = shift;
+    my $videofile = shift;
+
+    my $show = get_show($showname);
+    my $episodes = $rage->get_episodes($show->showid);
+    my $episode = select_episode($episodes, $videofile);
+    #die Dumper($episode);
+    my $video = get_video_from_episode($show, $episode);
+    my $pymeta = $util->get_pymeta($video);
+    #print $pymeta;
+    write_meta_file($pymeta, $videofile);
+}
+
+sub write_meta_file {
+    my $pymeta = shift;
+    my $videofile = shift;
+
+    $videofile = $videofile . '.txt';
+    open my $out, '>', $videofile or die "Failed to open $videofile for write: $!";
+    print $out $pymeta or die "Failed to write to file: $!";
+    close $out or die "Failed to close handle: $!";
+}
+
+sub get_video_from_episode {
+    my $show = shift;
+    my $episode = shift;
+
+    my $video = Tivo::ContainerItem->new;
+    my $detail = Tivo::VideoDetails->new;
+    $detail->is_episode(1);
+    $detail->is_episodic(1);
+    $detail->series_title( $show->name );
+    $detail->title( $show->name );
+    $detail->episode_title( $episode->title );
+    $detail->episode_number( $episode->season . $episode->seasonnum );
+    $detail->original_air_date( $episode->airdate . 'T00:00:00Z');
+    $video->video_details($detail);
+    return $video;
+}
+
+sub select_episode {
+    my $episodes = shift;
+    my $videofile = shift;
+
+    if ($videofile =~ /(\d+)x(\d+)/) {
+        for (@$episodes) {
+            if ($_->season == $1 && $_->seasonnum == $2) {
+                return $_;
+            }
+        }
+    } else {
+        for (my $i = 0; $i < @$episodes; $i++) {
+            my $ep = $episodes->[$i];
+            printf("%2d %dx%d title: %s\n", $i, $ep->season, $ep->seasonnum, $ep->title);
+        }
+        print "Select the episode: ";
+        chomp(my $index = <STDIN>);
+        return $episodes->[$index];
+    }
+}
+
+sub get_show {
+    my $name = shift;
+
+    my $show = eval { $rage->find_show($name) };
+    return $show if $show;
+    warn $@ if $@;
+
+    my @shows = $rage->get_show($name);
+    for (my $i = 0; $i < @shows; $i++) {
+        printf("%2d %s\n", $i, $shows[$i]->name);
+    }
+
+    print "Select the number for the desired show: ";
+    chomp(my $index = <STDIN>);
+    #print Dumper($shows[$index]);
+    return $shows[$index];
+}
+
+sub help {
+    print STDERR <<HELP;
+    $0 <video file|video directory>
+HELP
+}
+
+__END__
+
+=head1 PURPOSE
+
+    Fetch metadata for DVD rips, and write it out for use with pyTivo.
+
+=head1 SYNOPSIS
+
+    get-meta <video file|video directory>
+
+=head1 Author
+
+    Jeremy Singletary, <jeremys@rickyninja.net>
