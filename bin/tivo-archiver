@@ -213,6 +213,7 @@ sub download {
         }
 
         my $file = join('/', $dest, $mpg_filename);
+        $file = transcode($file);
         set_orig_air_date($detail, $file);
     }
     else {
@@ -227,6 +228,29 @@ sub download {
 
     if ($conf->{sleep_for}) {
         sleep $conf->{sleep_for}; # Pause between downloads in attempt to prevent tivo network failure.
+    }
+}
+
+sub transcode {
+    my $file = shift || die 'missing file';
+
+    my $mp4 = $file;
+    $mp4 =~ s/mpg$/m4v/;
+
+    my @cmd = (
+        '/usr/bin/HandBrakeCLI', '-i', $file, '-o', $mp4,
+        qw(--audio 1 --aencoder copy:aac --audio-fallback faac
+          --audio-copy-mask aac --preset=Universal
+        )
+    );
+
+    # HandBrakeCLI will fail on occasion; gui seems to always work.
+    if (system(@cmd) == 0) {
+        unlink($file);
+        return $mp4;
+    } else {
+        unlink($mp4);
+        return $file;
     }
 }
 
