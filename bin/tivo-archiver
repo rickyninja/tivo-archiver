@@ -65,6 +65,7 @@ if (exists $conf->{region}) {
 }
 
 my $archive_dir = $conf->{archive_dir};
+my $search_index = build_search_index($archive_dir);
 
 unless (chdir($archive_dir)) {
      log_error("Failed to chdir to $archive_dir: $!");
@@ -121,7 +122,7 @@ sub download {
 
     # Match any configured file extension (m4v, mpg, etc.).
     for my $ext (@{$conf->{extensions}}) {
-        my $found = findit("$filename.$ext", $archive_dir);
+        my $found = $search_index->{"$filename.$ext"};
         if ($found) {
             my $basename = (split m{/}, $found)[-1];
             $pymeta_file = "$archive_dir/.meta/$basename.txt";
@@ -305,27 +306,24 @@ sub write_pymeta {
     close $meta or log_error("Failed to close meta handle: $!");
 }
 
-sub findit {
-    my $search = shift || die 'missing search';
+sub build_search_index {
     my $dir = shift || die 'missing dir';
+    my $index = shift || {};
 
     opendir my $dh, $dir or die "Failed to opendir $dir: $!";
     for my $file (readdir($dh)) {
         my $path = "$dir/$file";
         next unless -r $path;
         if (-d $path && $file ne '.' && $file ne '..') {
-            my $found = findit($search, $path);
-            return $found if $found;
+            build_search_index($path, $index);
         }
         elsif (-f $path) {
-            if ($file eq $search) {
-                return $path;
-            }
+            $index->{$file} = $path;
         }
     }
     closedir $dh or die "Failed to closedir: $!";
 
-    return;
+    return wantarray ? %$index : $index;
 }
 
 sub log_error {
