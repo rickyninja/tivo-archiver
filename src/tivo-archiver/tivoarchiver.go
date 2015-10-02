@@ -18,11 +18,11 @@ import (
     "syscall"
     "time"
     "tivo"
-    "tvrage"
+    "tvmaze"
 )
 
 var exe string = path.Base(os.Args[0])
-var ragecachefile = "/tmp/go-tvrage-cache"  // combined cachefile?
+var mazecachefile = "/tmp/go-tvrage-cache"  // combined cachefile?
 var conffile = fmt.Sprintf("/etc/%s.yml", exe)
 var conf *Conf
 var debug bool
@@ -83,11 +83,11 @@ func main() {
     searchindex = make(SearchIndex)
     searchindex = build_search_index(conf.ArchiveDir, searchindex)
 
-    rage := tvrage.New(ragecachefile)
+    maze := tvmaze.New(mazecachefile)
     tc := tivo.New(conf.TivoHost, "tivo", "https", conf.MAK, "go-tivo-cache")
     tc.UseCache = use_cache
     if debug {
-        rage.Debug = true
+        maze.Debug = true
         tc.Debug = true
     }
     param := make(map[string]string)
@@ -97,7 +97,7 @@ func main() {
     ch := make(chan DownloadStatus)
     containers := tc.QueryContainer(param)
     for _, ci := range containers {
-        download(tc, rage, ci, ch)
+        download(tc, maze, ci, ch)
     }
 
     for i := 1; i <= len(containers); i++ {
@@ -108,11 +108,11 @@ func main() {
     }
 
     // log.Fatal() is preventing cache from being written.
-    rage.WriteCache()
+    maze.WriteCache()
     tc.WriteCache()
 }
 
-func download(tc *tivo.Tivo, rage *tvrage.Client, ci tivo.ContainerItem, ch chan DownloadStatus) {
+func download(tc *tivo.Tivo, maze *tvmaze.Client, ci tivo.ContainerItem, ch chan DownloadStatus) {
     status := DownloadStatus{}
     if ci.InProgress == "Yes" {
         go func() { ch <- status }()
@@ -128,7 +128,7 @@ func download(tc *tivo.Tivo, rage *tvrage.Client, ci tivo.ContainerItem, ch chan
     detail := tc.GetDetail(ci)
     ci.Detail = detail
     // Mr. Robot not matching.  http://services.tvrage.com/feeds/episode_list.php?sid=42422
-    filename, err := tc.GetFilename(rage, &detail)
+    filename, err := tc.GetFilename(maze, &detail)
     if err != nil {
         log.Print("Failed to get tivo filename: " + err.Error())
         go func() { ch <- status }()

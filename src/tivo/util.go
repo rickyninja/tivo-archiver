@@ -6,22 +6,26 @@ import (
     "fmt"
     "errors"
     "strconv"
-    "tvrage"
+    "tvmaze"
 )
 
-func (c *Tivo) GetFilename(rage *tvrage.Client, detail *VideoDetail) (string, error) {
+func (c *Tivo) GetFilename(maze *tvmaze.Client, detail *VideoDetail) (string, error) {
     filename := detail.Title
 
     if detail.IsEpisodic {
-        rtv_show, err := rage.FindShow(detail.Title)
+        show, err := maze.FindShow(detail.Title)
         if err != nil {
             return "", err
         }
 
-        episodes := rage.GetEpisodes(rtv_show.ShowID)
-        episode, err := c.FindRageEpisode(detail, episodes)
+        episodes, err := maze.GetEpisodes(show.ID)
         if err != nil {
-            fmt.Printf(err.Error())
+            return "", err
+        }
+
+        episode, err := c.FindEpisode(detail, episodes)
+        if err != nil {
+            fmt.Println(err.Error())
             // Some shows have several candidates in the tvrage api, and no data
             // in the tivo to disambiguate the candidates (Being Human for example).
             // If the episode_number is all digits, it's hopefully accurate.
@@ -39,8 +43,8 @@ func (c *Tivo) GetFilename(rage *tvrage.Client, detail *VideoDetail) (string, er
                 }
             }
         } else {
-            detail.EpisodeNumber = fmt.Sprintf("%d%.2d", episode.Season, episode.SeasonNum)
-            filename += fmt.Sprintf(" %dx%.2d-%s", episode.Season, episode.SeasonNum, detail.EpisodeTitle)
+            detail.EpisodeNumber = fmt.Sprintf("%d%.2d", episode.Season, episode.Number)
+            filename += fmt.Sprintf(" %dx%.2d-%s", episode.Season, episode.Number, detail.EpisodeTitle)
         }
     }
 
@@ -48,29 +52,29 @@ func (c *Tivo) GetFilename(rage *tvrage.Client, detail *VideoDetail) (string, er
     return filename, nil
 }
 
-func (c *Tivo) FindRageEpisode(detail *VideoDetail, episodes []tvrage.Episode) (tvrage.Episode, error) {
+func (c *Tivo) FindEpisode(detail *VideoDetail, episodes []tvmaze.Episode) (tvmaze.Episode, error) {
     for desperate := 0; desperate <= 3; desperate++ {
         for _, episode := range episodes {
             // normalize chars ’ vs ' etc.
-            var rtb []byte
+            var mtb []byte
             var ttb []byte
             var tivotitle string
-            var ragetitle string
-            if len(episode.Title) == len(detail.EpisodeTitle) {
-                rtb = []byte(episode.Title)
+            var mazetitle string
+            if len(episode.Name) == len(detail.EpisodeTitle) {
+                mtb = []byte(episode.Name)
                 ttb = []byte(detail.EpisodeTitle)
-                for i := 0; i < len(rtb); i++ {
-                    ord := int(rtb[i])
+                for i := 0; i < len(mtb); i++ {
+                    ord := int(mtb[i])
                     if ord < 32 || ord > 126 {
-                        rtb = append(rtb[:i], rtb[i+1:]...)
+                        mtb = append(mtb[:i], mtb[i+1:]...)
                         ttb = append(ttb[:i], ttb[i+1:]...)
                     }
                 }
                 tivotitle = string(ttb[:])
-                ragetitle = string(rtb[:])
+                mazetitle = string(mtb[:])
             } else {
                 tivotitle = detail.EpisodeTitle
-                ragetitle = episode.Title
+                mazetitle = episode.Name
             }
 
             // As we become more desperate to find a match strip out non-word characters
@@ -78,48 +82,45 @@ func (c *Tivo) FindRageEpisode(detail *VideoDetail, episodes []tvrage.Episode) (
             if desperate >= 2 {
                 re := regexp.MustCompile(`\W`)
                 tivotitle = string(re.ReplaceAll([]byte(tivotitle), []byte("")))
-                ragetitle = string(re.ReplaceAll([]byte(ragetitle), []byte("")))
+                mazetitle = string(re.ReplaceAll([]byte(mazetitle), []byte("")))
             }
 
             // exact title match
-            if ragetitle == tivotitle {
-                return episode, nil
-            // match against production code (Charmed)
-            } else if detail.EpisodeNumber == episode.ProdNum {
+            if strings.ToLower(mazetitle) == strings.ToLower(tivotitle) {
                 return episode, nil
             // exact title match if you add part_index inside parens to tivo title
             } else if detail.PartIndex > 0 && desperate == 0 {
                 tt := fmt.Sprintf("%s (%d)", tivotitle, detail.PartIndex)
-                if tt == ragetitle {
+                if tt == mazetitle {
                     return episode, nil
                 }
             // rage title contains tivo title
-            } else if desperate == 1 && strings.Contains(ragetitle, tivotitle) {
+            } else if desperate == 1 && strings.Contains(mazetitle, tivotitle) {
                 return episode, nil
             // tivo title contains rage title
-            } else if desperate == 1 && strings.Contains(tivotitle, ragetitle) {
-                detail.EpisodeNumber = fmt.Sprintf("%d%.2d", episode.Season, episode.SeasonNum)
+            } else if desperate == 1 && strings.Contains(tivotitle, mazetitle) {
+                detail.EpisodeNumber = fmt.Sprintf("%d%.2d", episode.Season, episode.Number)
                         return episode, nil
             } else if desperate == 1 {
                 // try to match 'Kill Billie: Vol.2' with 'Kill Billie (2)'
                 re := regexp.MustCompile(`\((\d+)\)/`)
-                captures := re.FindStringSubmatch(ragetitle)
+                captures := re.FindStringSubmatch(mazetitle)
 
                 if captures != nil {
-                    rt := string(re.ReplaceAll([]byte(ragetitle), []byte("")))
+                    mt := string(re.ReplaceAll([]byte(mazetitle), []byte("")))
                     sequel := captures[1]
-                    rt = strings.TrimSpace(rt)
-                    if strings.Contains(tivotitle, rt) && strings.Contains(tivotitle, sequel) {
+                    mt = strings.TrimSpace(mt)
+                    if strings.Contains(tivotitle, mt) && strings.Contains(tivotitle, sequel) {
                         return episode, nil
                     }
-                } else if strings.Contains(ragetitle, " and ") && strings.Contains(tivotitle, "&") {
+                } else if strings.Contains(mazetitle, " and ") && strings.Contains(tivotitle, "&") {
                     tt := strings.Replace(tivotitle, "&", "and", -1)
-                    if ragetitle == tt {
+                    if mazetitle == tt {
                         return episode, nil
                     }
-                } else if strings.Contains(ragetitle, "&") && strings.Contains(tivotitle, " and ") {
+                } else if strings.Contains(mazetitle, "&") && strings.Contains(tivotitle, " and ") {
                     tt := strings.Replace(tivotitle, " and ", " & ", -1)
-                    if ragetitle == tt {
+                    if mazetitle == tt {
                         return episode, nil
                     }
                 }
@@ -127,7 +128,7 @@ func (c *Tivo) FindRageEpisode(detail *VideoDetail, episodes []tvrage.Episode) (
         }
     }
 
-    return tvrage.Episode{}, errors.New("Failed to ID season and episode!")
+    return tvmaze.Episode{}, errors.New("Failed to ID season and episode!")
 }
 
 func (c *Tivo) GetPymeta(detail *VideoDetail) string {
