@@ -20,6 +20,7 @@ type Client struct {
     Region string
     Cache *cache.Cache
     CacheFile string
+    UseCache bool
     *http.Client
 }
 
@@ -129,7 +130,7 @@ func (c *Client) GetEpisodes(showID int64) ([]Episode, error) {
 func (c *Client) Go(uri *url.URL) ([]byte, error) {
     data, found := c.Cache.Get(uri.String())
 
-    if ! found {
+    if ! found || ! c.UseCache {
         if c.Debug {
             log.Print("cache miss: " + uri.String() + "\n")
         }
@@ -154,7 +155,7 @@ func (c *Client) Go(uri *url.URL) ([]byte, error) {
         c.Cache.Set(uri.String(), data, 0)
     } else {
         if c.Debug {
-            fmt.Println("cache hit: " + uri.String() + "\n")
+            fmt.Printf("cache hit: %s\n", uri.String())
         }
     }
 

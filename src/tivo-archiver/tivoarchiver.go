@@ -1,6 +1,7 @@
 package main
 
 import (
+    "errors"
     "flag"
     "fmt"
     "gopkg.in/yaml.v2"
@@ -12,7 +13,6 @@ import (
     "os/exec"
     "os/signal"
     "path"
-    "regexp"
     "strconv"
     "strings"
     "syscall"
@@ -22,18 +22,18 @@ import (
 )
 
 var exe string = path.Base(os.Args[0])
-var mazecachefile = "/tmp/go-tvrage-cache"  // combined cachefile?
+var meta_cachefile = "/tmp/tv-meta-cache"
+var tivo_cachefile = "/tmp/tivo-cache"
 var conffile = fmt.Sprintf("/etc/%s.yml", exe)
 var conf *Conf
 var debug bool
-var use_cache bool
+var (cache_tivo, cache_meta bool)
 var configure bool
 var searchindex SearchIndex
 
 type Conf struct {
     ArchiveDir string `yaml:"archive_dir"`
     MAK int `yaml:"mak"`
-    TivoDecode int `yaml:"tivo_decode"`
     TivoHost string `yaml:"tivo_host"`
     SleepFor int `yaml:"sleep_for"`
     Region string `yaml:"region"`
@@ -41,11 +41,6 @@ type Conf struct {
 }
 
 type SearchIndex map[string]string
-
-type DownloadStatus struct {
-    filename string
-    downloaded bool
-}
 
 func build_search_index(dir string, index SearchIndex) SearchIndex {
     files, err := ioutil.ReadDir(dir)
@@ -70,9 +65,18 @@ func build_search_index(dir string, index SearchIndex) SearchIndex {
     return index
 }
 
+func sigTivoFile(tivo_file string) {
+    sigs := make(chan os.Signal, 1)
+    signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+    <-sigs
+    os.Remove(tivo_file)
+    os.Exit(1)
+}
+
 func main() {
     flag.Parse()
-    lockrun()
+    lock := lockrun()
+    defer lock.Close()
     conf = load_config()
 
     perr := os.Chdir(conf.ArchiveDir)
@@ -83,9 +87,10 @@ func main() {
     searchindex = make(SearchIndex)
     searchindex = build_search_index(conf.ArchiveDir, searchindex)
 
-    maze := tvmaze.New(mazecachefile)
-    tc := tivo.New(conf.TivoHost, "tivo", "https", conf.MAK, "go-tivo-cache")
-    tc.UseCache = use_cache
+    maze := tvmaze.New(meta_cachefile)
+    maze.UseCache = cache_meta
+    tc := tivo.New(conf.TivoHost, "tivo", "https", conf.MAK, tivo_cachefile)
+    tc.UseCache = cache_tivo
     if debug {
         maze.Debug = true
         tc.Debug = true
@@ -94,17 +99,48 @@ func main() {
     param["Container"] = "/NowPlaying"
     param["Recurse"] = "Yes"
 
-    ch := make(chan DownloadStatus)
     containers := tc.QueryContainer(param)
+    transCount := 0
+    trans := make(chan TranStatus)
+
     for _, ci := range containers {
-        download(tc, maze, ci, ch)
+        dl, err := download(tc, maze, ci)
+        if err != nil {
+            fmt.Printf("Download failed: %s\n", err.Error())
+            continue
+        }
+
+        if !dl.Occurred {
+            continue
+        }
+
+        tivo_file := dl.File
+        mpg_file := strings.TrimSuffix(tivo_file, ".tivo") + ".mpg"
+        tmp_file := conf.ArchiveDir + "/" + path.Base(tivo_file) 
+
+        if debug {
+            fmt.Printf("downloaded: %s\n", tmp_file)
+        }
+
+        err = tivo_decode(mpg_file, tmp_file)
+        if err != nil {
+            fmt.Printf("Failed to tivo_decode(%s, %s): %s\n", mpg_file, tmp_file, err.Error())
+            continue
+        }
+        os.Remove(tmp_file)
+
+        transCount++
+        go transcode(mpg_file, trans)
+
+        // Pause between downloads in attempt to prevent tivo network failure.
+        if conf.SleepFor > 0 {
+            time.Sleep(time.Duration(conf.SleepFor) * time.Second)
+        }
     }
 
-    for i := 1; i <= len(containers); i++ {
-        status := <-ch
-        if status.downloaded && debug {
-            fmt.Printf("downloaded: %s\n", status.filename)
-        }
+    for i := 0; i < transCount; i++ {
+        status := <-trans
+        reportTranStatus(status)
     }
 
     // log.Fatal() is preventing cache from being written.
@@ -112,17 +148,41 @@ func main() {
     tc.WriteCache()
 }
 
-func download(tc *tivo.Tivo, maze *tvmaze.Client, ci tivo.ContainerItem, ch chan DownloadStatus) {
-    status := DownloadStatus{}
+func reportTranStatus(status TranStatus) {
+    // HandBrakeCLI will fail on occasion; gui seems to always work.
+    // Best effort to transcode to reduce file size, but save the file even if transcode fails.
+    if status.Err == nil {
+        if debug {
+            fmt.Printf("Transcode passed removing %s\n", status.OrigFile)
+        }
+        err := os.Remove(status.OrigFile)
+        if err != nil {
+            fmt.Printf("%s\n", err.Error())
+        }
+    } else {
+        if debug {
+            fmt.Printf("Transcode failed: %s removing %s\n", status.Err.Error(), status.TranFile)
+        }
+        err := os.Remove(status.TranFile)
+        if err != nil {
+            fmt.Printf("%s\n", err.Error())
+        }
+    }
+}
+
+type Download struct {
+    Occurred bool
+    File string
+}
+
+func download(tc *tivo.Tivo, maze *tvmaze.Client, ci tivo.ContainerItem) (Download, error) {
     if ci.InProgress == "Yes" {
-        go func() { ch <- status }()
-        return
+        return Download{false, ""}, nil
     }
 
     // These are the recordings that need to be downloaded.
     if ! strings.Contains(ci.CustomIconURL, "save-until-i-delete-recording") {
-        go func() { ch <- status }()
-        return
+        return Download{false, ""}, nil
     }
 
     detail := tc.GetDetail(ci)
@@ -130,87 +190,47 @@ func download(tc *tivo.Tivo, maze *tvmaze.Client, ci tivo.ContainerItem, ch chan
     // Mr. Robot not matching.  http://services.tvrage.com/feeds/episode_list.php?sid=42422
     filename, err := tc.GetFilename(maze, &detail)
     if err != nil {
-        log.Print("Failed to get tivo filename: " + err.Error())
-        go func() { ch <- status }()
-        return
+        return Download{false, ""}, err
     }
 
     tivofilename := filename + ".tivo"
-    mpgfilename := filename + ".mpg"
-    pymeta := tc.GetPymeta(&detail)
-    pymetafile := fmt.Sprintf("%s/.meta/%s.txt", conf.ArchiveDir, mpgfilename) // default
 
-    // Match any configured file extension (m4v, mpg, etc.).
-    for _, ext := range conf.Extensions {
-        found := searchindex[filename + "." + ext]
-        if found != "" {
-            pymetafile = fmt.Sprintf("%s/.meta/%s.txt", conf.ArchiveDir, path.Base(found))
-            write_pymeta(pymeta, pymetafile)
-            if debug {
-                fmt.Printf("already downloaded %s\n", path.Base(found))
-            }
-            set_orig_air_date(detail, found)
-            go func() { ch <- status }()
-            return
-        } else {
-            if debug {
-                fmt.Printf("Failed to find %s.%s\n", filename, ext)
-            }
-        }
+    if alreadyDownloaded(filename) {
+        return Download{false, ""}, nil
     }
 
-    write_pymeta(pymeta, pymetafile)
-    if debug {
-        fmt.Printf("downloading %s\n", mpgfilename)
-    }
     uri, err := url.Parse(ci.ContentURL)
     if err != nil {
-        log.Fatal(err)
+        return Download{false, ""}, err
     }
 
+    if debug {
+        fmt.Printf("downloading %s\n", tivofilename)
+    }
+
+    go sigTivoFile(tivofilename)
     resp := tc.Go(uri)
     defer resp.Body.Close()
     if resp.StatusCode != 200 {
-        log.Println(resp.Status)
-        go func() { ch <- status }()
-        return
+        return Download{false, ""}, errors.New(resp.Status)
     }
-
-    sigs := make(chan os.Signal, 1)
-    signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
-    go func() {
-        <-sigs
-        os.Remove(tivofilename)
-        os.Exit(1)
-    }()
 
     out, err := os.Create(tivofilename)
     if err != nil {
-        log.Println(err.Error())
         os.Remove(tivofilename)
-        go func() { ch <- status }()
-        return
+        return Download{false, ""}, err
     }
     defer out.Close()
 
     _, err = io.Copy(out, resp.Body)
     if err != nil {
-        log.Println(err.Error())
         os.Remove(tivofilename)
-        go func() { ch <- status }()
-        return
+        return Download{false, ""}, err
     }
-    status.downloaded = true
 
     dest := conf.ArchiveDir + "/"
     if detail.IsEpisodic {
-        season := 0
-        re := regexp.MustCompile(`^(\d+)\d{2}$`)
-        s := re.FindStringSubmatch(detail.EpisodeNumber)
-        if s != nil {
-            season, err = strconv.Atoi(s[1])
-        }
-        slice := []string{"tv", detail.Title, fmt.Sprintf("season%d", season)}
+        slice := []string{"tv", detail.Title}
         dest += strings.Join(slice, "/")
     } else {
         dest += "movies"
@@ -218,135 +238,95 @@ func download(tc *tivo.Tivo, maze *tvmaze.Client, ci tivo.ContainerItem, ch chan
 
     err = os.MkdirAll(dest, 0755)
     if err != nil {
-        log.Println(err.Error())
-        go func() { ch <- status }()
-        return
+        return Download{false, ""}, err
     }
 
-    fi, err := os.Lstat(dest + "/.meta")
-    if err != nil || fi.Mode() & os.ModeSymlink != os.ModeSymlink {
-        err := os.Symlink(conf.ArchiveDir + "/.meta", dest + "/.meta")
-        if err != nil {
-            fmt.Printf("Failed to create symlink at %s/.meta\n", dest)
-        }
-    }
+    return Download{true, dest + "/" + tivofilename}, nil
+}
 
-    if conf.TivoDecode == 1 {
-        err := tivo_decode(mpgfilename, tivofilename)
-        if err != nil {
-            log.Fatal("Failed to decode tivo file to mpeg: " + err.Error())
+func alreadyDownloaded(filename string) bool {
+    // Match any configured file extension (m4v, mpg, etc.).
+    for _, ext := range conf.Extensions {
+        found := searchindex[filename + "." + ext]
+        if found != "" {
+            if debug {
+                fmt.Printf("already downloaded %s\n", path.Base(found))
+            }
+            return true
         } else {
-            os.Remove(tivofilename)
+            if debug {
+                fmt.Printf("Failed to find %s.%s\n", filename, ext)
+            }
         }
-
-        err = os.Rename(mpgfilename, dest + "/" + mpgfilename)
-        if err != nil {
-            log.Fatal(err.Error());
-        }
-
-        file := dest + "/" + mpgfilename
-
-        go func() {
-            file = transcode(file)
-            status.filename = file
-            set_orig_air_date(detail, file)
-            ch <- status
-        }()
-    } else {
-        absfile := dest + "/" + tivofilename
-        err = os.Rename(tivofilename, absfile)
-        if err != nil {
-            log.Fatal(fmt.Sprintf("Failed to move %s to $dest: %s", mpgfilename, err.Error()));
-        }
-        set_orig_air_date(detail, absfile)
-        status.filename = absfile
-        go func() { ch <- status }()
     }
-
-    // Pause between downloads in attempt to prevent tivo network failure.
-    if conf.SleepFor > 0 {
-        //time.Sleep(time.Duration(conf.SleepFor) * time.Second)
-    }
+    return false
 }
 
-func set_orig_air_date(detail tivo.VideoDetail, file string) {
-    if ! detail.IsEpisodic {
-        return
-    }
-
-    _, err := os.Stat(file)
-    if err != nil {
-        fmt.Printf("Failed to stat %s: %s\n", file, err.Error())
-    }
-
-    mtime, err := time.Parse("2006-01-02T15:04:05Z", detail.OriginalAirDate)
-    if err != nil {
-        fmt.Printf("Failed parse OAD: %s\n", err.Error())
-        return
-    }
-
-    err = os.Chtimes(file, mtime, mtime)
-    if err != nil {
-        fmt.Printf("Failed to update timestamp for %s: %s\n", file, err.Error())
-    }
+type TranStatus struct {
+    OrigFile string
+    TranFile string
+    Err error
 }
 
-func transcode(file string) string {
+func transcode(file string, trans chan<- TranStatus) {
     mp4 := strings.TrimSuffix(file, ".mpg") + ".m4v"
     cmd := exec.Command("/usr/bin/HandBrakeCLI", "-i", file, "-o", mp4,
         "--audio", "1", "--aencoder", "copy:aac", "--audio-fallback", "faac",
         "--audio-copy-mask", "aac", "--preset=Universal")
 
-    // HandBrakeCLI will fail on occasion; gui seems to always work.
-    // Best effort to transcode to reduce file size, but save the file even if transcode fails.
-    err := cmd.Run()
-    if err == nil {
-        if debug {
-            fmt.Printf("Transcode passed removing %s\n", file)
-        }
-        err := os.Remove(file)
-        if err != nil {
-            fmt.Printf("%s\n", err.Error())
-        }
-        return mp4
-    } else {
-        if debug {
-            fmt.Printf("Transcode failed: %s removing %s\n", err.Error(), mp4)
-        }
-        err := os.Remove(mp4)
-        if err != nil {
-            fmt.Printf("%s\n", err.Error())
-        }
-        return file
+    stderr, err := cmd.StderrPipe()
+    if err != nil {
+        trans <- TranStatus{file, mp4, err}
+        return
     }
+
+    err = cmd.Start()
+    if err != nil {
+        trans <- TranStatus{file, mp4, err}
+        return
+    }
+
+    bytes, _ := ioutil.ReadAll(stderr)
+    msg := strings.TrimSpace(string(bytes))
+
+    err = cmd.Wait()
+    if err != nil {
+        trans <- TranStatus{file, mp4, errors.New(msg)}
+        return
+    }
+    trans <- TranStatus{file, mp4, nil}
 }
 
 func tivo_decode(mpgfilename, tivofilename string) error {
     cmd := exec.Command("/usr/local/bin/tivodecode", "--mak", strconv.Itoa(conf.MAK), "--out", mpgfilename, tivofilename)
-    err := cmd.Run()
-    return err
-}
-
-func write_pymeta(pymeta, file string) {
-    fd, err := os.Create(file)
+    stderr, err := cmd.StderrPipe()
     if err != nil {
-        log.Fatal(fmt.Sprintf("Failed to open %s: %s", file, err.Error()))
+        return err
     }
-    defer fd.Close()
 
-    _, err = fd.Write([]byte(pymeta))
+    err = cmd.Start()
     if err != nil {
-        log.Fatal("Failed to write pymeta file: " + err.Error())
+        return err
     }
+
+    bytes, _ := ioutil.ReadAll(stderr)
+    msg := strings.TrimSpace(string(bytes))
+
+    err = cmd.Wait()
+    if err != nil {
+        return errors.New(msg)
+    }
+    return nil
 }
 
 func init() {
     flag.BoolVar(&debug, "debug", false, "--debug")
-    flag.BoolVar(&use_cache, "usecache", false, "--usecache")
+    flag.BoolVar(&cache_tivo, "cache-tivo", false, "Use cache of tivo api query results.")
+    flag.BoolVar(&cache_meta, "cache-meta", true, "Use cache of tv meta data api results.")
     flag.BoolVar(&configure, "configure", false, "--configure")
 }
 
-func lockrun() {
+func lockrun() *os.File {
     lockfile := fmt.Sprintf("/tmp/%s.pid", path.Base(os.Args[0]))
     fd, err := os.OpenFile(lockfile, os.O_RDWR | os.O_CREATE, 0666)
     if err != nil {
@@ -362,6 +342,7 @@ func lockrun() {
     if err != nil {
         log.Fatal("Failed to obtain lock: " + err.Error())
     }
+    return fd
 }
 
 func load_config() *Conf {

@@ -1,7 +1,6 @@
 # PURPOSE
 
-Download tivo recordings marked as 'keep until I delete' and organize them on a media server.
-Intended to be a complement to pyTivo.
+Download tivo recordings marked as 'keep until I delete'.  Play them later on [Kodi](http://kodi.tv/about/).
 
 # SYNOPSIS
 

@@ -1,0 +1,10 @@
+---
+archive_dir: 
+mak: 
+tivo_host: 
+sleep_for: 0
+region: US
+extensions: 
+    - m4v
+    - mp4
+    - mpg
