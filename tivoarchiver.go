@@ -16,9 +16,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"tivo"
-	"tvmaze"
 
+	"github.com/rickyninja/tivo"
+	"github.com/rickyninja/tvmaze"
 	"gopkg.in/yaml.v2"
 )
 
