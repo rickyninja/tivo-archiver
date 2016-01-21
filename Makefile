@@ -1,11 +1,7 @@
-export GOPATH = $(CURDIR)
-#export CGO_ENABLED = 0
+export GOPATH = $(HOME)
 
-target = tivo-archiver
+target = github.com/rickyninja/tivo-archiver
 
 all:
-#	go install tvrage
-#	go install -a -installsuffix cgo $(target)
-#	go build -o bin/$(target) -a -installsuffix cgo $(target)
-	go get $(target)
+	go get -u $(target)
 	go install $(target)
