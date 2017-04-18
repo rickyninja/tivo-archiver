@@ -180,7 +180,7 @@ type Download struct {
 }
 
 func download(tc *tivo.Tivo, maze *tvmaze.Client, ci tivo.ContainerItem) (Download, error) {
-	if ci.InProgress == "Yes" {
+	if ci.InProgress {
 		return Download{false, ""}, nil
 	}
 
