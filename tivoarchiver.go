@@ -138,7 +138,7 @@ func main() {
 			continue
 		}
 
-		ci.Detail, err = tc.GetDetail(ci)
+		ci.Detail, err = tc.GetDetail(ci.VideoDetailsURL)
 		if err != nil {
 			fmt.Printf("Failed to tivo.GetDetail: %s\n", err)
 			continue
@@ -231,7 +231,7 @@ func download(tc *tivo.Client, tivofilename string, ci tivo.ContainerItem) (file
 	}
 
 	go sigTivoFile(tivofilename)
-	resp, err := tc.Go(uri)
+	resp, err := tc.Get(uri)
 	if err != nil {
 		return file, err
 	}
