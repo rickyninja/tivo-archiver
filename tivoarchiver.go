@@ -83,9 +83,10 @@ func main() {
 	defer lock.Close()
 	conf = load_config()
 
-	perr := os.Chdir(conf.ArchiveDir)
-	if perr != nil {
-		log.Fatal("Failed to chdir: " + perr.Error())
+	err := os.Chdir(conf.ArchiveDir)
+	if err != nil {
+		fmt.Printf("Failed chdir to %s: %s", conf.ArchiveDir, err)
+		return
 	}
 
 	searchindex = make(SearchIndex)
@@ -108,17 +109,35 @@ func main() {
 	trans := make(chan TranStatus)
 
 	for _, ci := range containers {
-		dl, err := download(tc, maze, ci)
+		if ci.InProgress {
+			continue
+		}
+
+		// These are the recordings that need to be downloaded.
+		if !strings.Contains(ci.CustomIconURL, "save-until-i-delete-recording") {
+			continue
+		}
+
+		ci.Detail = tc.GetDetail(ci)
+		// Mr. Robot not matching.  http://services.tvrage.com/feeds/episode_list.php?sid=42422
+		filename, err := getFilename(maze, &ci.Detail)
 		if err != nil {
 			fmt.Printf("Download failed: %s\n", err.Error())
 			continue
 		}
 
-		if !dl.Occurred {
+		tivofilename := filename + ".tivo"
+		if alreadyDownloaded(filename) {
 			continue
 		}
 
-		tivo_file := dl.File
+		file, err := download(tc, tivofilename, ci)
+		if err != nil {
+			fmt.Printf("Download failed: %s\n", err.Error())
+			continue
+		}
+
+		tivo_file := file
 		mpg_file := strings.TrimSuffix(tivo_file, ".tivo") + ".mpg"
 		tmp_file := conf.ArchiveDir + "/" + path.Base(tivo_file)
 
@@ -137,9 +156,7 @@ func main() {
 		go transcode(mpg_file, trans)
 
 		// Pause between downloads in attempt to prevent tivo network failure.
-		if conf.SleepFor > 0 {
-			time.Sleep(time.Duration(conf.SleepFor) * time.Second)
-		}
+		time.Sleep(time.Duration(conf.SleepFor) * time.Second)
 	}
 
 	for i := 0; i < transCount; i++ {
@@ -147,7 +164,6 @@ func main() {
 		reportTranStatus(status)
 	}
 
-	// log.Fatal() is preventing cache from being written.
 	maze.WriteCache()
 	tc.WriteCache()
 }
@@ -174,38 +190,10 @@ func reportTranStatus(status TranStatus) {
 	}
 }
 
-type Download struct {
-	Occurred bool
-	File     string
-}
-
-func download(tc *tivo.Tivo, maze *tvmaze.Client, ci tivo.ContainerItem) (Download, error) {
-	if ci.InProgress {
-		return Download{false, ""}, nil
-	}
-
-	// These are the recordings that need to be downloaded.
-	if !strings.Contains(ci.CustomIconURL, "save-until-i-delete-recording") {
-		return Download{false, ""}, nil
-	}
-
-	detail := tc.GetDetail(ci)
-	ci.Detail = detail
-	// Mr. Robot not matching.  http://services.tvrage.com/feeds/episode_list.php?sid=42422
-	filename, err := getFilename(tc, maze, &detail)
-	if err != nil {
-		return Download{false, ""}, err
-	}
-
-	tivofilename := filename + ".tivo"
-
-	if alreadyDownloaded(filename) {
-		return Download{false, ""}, nil
-	}
-
+func download(tc *tivo.Tivo, tivofilename string, ci tivo.ContainerItem) (file string, err error) {
 	uri, err := url.Parse(ci.ContentURL)
 	if err != nil {
-		return Download{false, ""}, err
+		return file, err
 	}
 
 	if debug {
@@ -216,36 +204,37 @@ func download(tc *tivo.Tivo, maze *tvmaze.Client, ci tivo.ContainerItem) (Downlo
 	resp := tc.Go(uri)
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return Download{false, ""}, errors.New(resp.Status)
+		return file, errors.New(resp.Status)
 	}
 
 	out, err := os.Create(tivofilename)
 	if err != nil {
 		os.Remove(tivofilename)
-		return Download{false, ""}, err
+		return file, err
 	}
 	defer out.Close()
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
 		os.Remove(tivofilename)
-		return Download{false, ""}, err
+		return file, err
 	}
 
 	dest := conf.ArchiveDir + "/"
-	if detail.IsEpisodic {
-		slice := []string{"tv", detail.Title}
+	if ci.Detail.IsEpisodic {
+		slice := []string{"tv", ci.Detail.Title}
 		dest += strings.Join(slice, "/")
 	} else {
 		dest += "movies"
 	}
+	file = dest + "/" + tivofilename
 
 	err = os.MkdirAll(dest, 0755)
 	if err != nil {
-		return Download{false, ""}, err
+		return file, err
 	}
 
-	return Download{true, dest + "/" + tivofilename}, nil
+	return file, nil
 }
 
 func alreadyDownloaded(filename string) bool {
@@ -364,7 +353,7 @@ func load_config() *Conf {
 	return conf
 }
 
-func getFilename(tc *tivo.Tivo, maze *tvmaze.Client, detail *tivo.VideoDetail) (string, error) {
+func getFilename(maze *tvmaze.Client, detail *tivo.VideoDetail) (string, error) {
 	filename := detail.Title
 
 	if detail.IsEpisodic {
