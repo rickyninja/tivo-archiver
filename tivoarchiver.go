@@ -79,11 +79,19 @@ func sigTivoFile(tivo_file string) {
 
 func main() {
 	flag.Parse()
-	lock := lockrun()
+	lock, err := lockrun()
+	if err != nil {
+		fmt.Printf("Failed to acquire lock: %s", err)
+		return
+	}
 	defer lock.Close()
-	conf = load_config()
+	conf, err = load_config()
+	if err != nil {
+		fmt.Printf("Failed to load config: %s", err)
+		return
+	}
 
-	err := os.Chdir(conf.ArchiveDir)
+	err = os.Chdir(conf.ArchiveDir)
 	if err != nil {
 		fmt.Printf("Failed chdir to %s: %s", conf.ArchiveDir, err)
 		return
@@ -92,9 +100,17 @@ func main() {
 	searchindex = make(SearchIndex)
 	searchindex = build_search_index(conf.ArchiveDir, searchindex)
 
-	maze := tvmaze.New(meta_cachefile)
+	maze, err := tvmaze.NewClient(meta_cachefile)
+	if err != nil {
+		fmt.Printf("Failed to load tvmaze: %s\n", err)
+		return
+	}
 	maze.UseCache = cache_meta
-	tc := tivo.New(conf.TivoHost, "tivo", "https", conf.MAK, tivo_cachefile)
+	tc, err := tivo.NewClient(conf.TivoHost, "tivo", "https", conf.MAK, tivo_cachefile)
+	if err != nil {
+		fmt.Printf("Failed to construct tivo Client: %s", err)
+		return
+	}
 	tc.UseCache = cache_tivo
 	if debug {
 		maze.Debug = true
@@ -104,7 +120,11 @@ func main() {
 	param["Container"] = "/NowPlaying"
 	param["Recurse"] = "Yes"
 
-	containers := tc.QueryContainer(param)
+	containers, err := tc.QueryContainer(param)
+	if err != nil {
+		fmt.Printf("Failed to tivo.QueryContainer: %s\n", err)
+		return
+	}
 	transCount := 0
 	trans := make(chan TranStatus)
 
@@ -118,7 +138,11 @@ func main() {
 			continue
 		}
 
-		ci.Detail = tc.GetDetail(ci)
+		ci.Detail, err = tc.GetDetail(ci)
+		if err != nil {
+			fmt.Printf("Failed to tivo.GetDetail: %s\n", err)
+			continue
+		}
 		// Mr. Robot not matching.  http://services.tvrage.com/feeds/episode_list.php?sid=42422
 		filename, err := getFilename(maze, &ci.Detail)
 		if err != nil {
@@ -164,8 +188,14 @@ func main() {
 		reportTranStatus(status)
 	}
 
-	maze.WriteCache()
-	tc.WriteCache()
+	err = maze.WriteCache()
+	if err != nil {
+		fmt.Printf("Failed to write tvmaze cache: %s\n", err)
+	}
+	err = tc.WriteCache()
+	if err != nil {
+		fmt.Printf("Failed to write tivo cache: %s\n", err)
+	}
 }
 
 func reportTranStatus(status TranStatus) {
@@ -190,7 +220,7 @@ func reportTranStatus(status TranStatus) {
 	}
 }
 
-func download(tc *tivo.Tivo, tivofilename string, ci tivo.ContainerItem) (file string, err error) {
+func download(tc *tivo.Client, tivofilename string, ci tivo.ContainerItem) (file string, err error) {
 	uri, err := url.Parse(ci.ContentURL)
 	if err != nil {
 		return file, err
@@ -201,7 +231,10 @@ func download(tc *tivo.Tivo, tivofilename string, ci tivo.ContainerItem) (file s
 	}
 
 	go sigTivoFile(tivofilename)
-	resp := tc.Go(uri)
+	resp, err := tc.Go(uri)
+	if err != nil {
+		return file, err
+	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		return file, errors.New(resp.Status)
@@ -319,38 +352,38 @@ func init() {
 	flag.BoolVar(&configure, "configure", false, "--configure")
 }
 
-func lockrun() *os.File {
+func lockrun() (*os.File, error) {
 	lockfile := fmt.Sprintf("/tmp/%s.pid", path.Base(os.Args[0]))
 	fd, err := os.OpenFile(lockfile, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Failed to open %s: %s", lockfile, err.Error()))
+		return fd, err
 	}
 
 	_, err = fd.Write([]byte(fmt.Sprintf("%d", os.Getpid())))
 	if err != nil {
-		log.Fatal("Failed to write pid to lockfile: " + err.Error())
+		return fd, err
 	}
 
 	err = syscall.Flock(int(fd.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 	if err != nil {
-		log.Fatal("Failed to obtain lock: " + err.Error())
+		return fd, err
 	}
-	return fd
+	return fd, nil
 }
 
-func load_config() *Conf {
-	conf := &Conf{}
+func load_config() (*Conf, error) {
+	conf = new(Conf)
 	yamldata, err := ioutil.ReadFile(conffile)
 	if err != nil {
-		log.Fatal("Failed to open yaml config: " + err.Error())
+		return conf, err
 	}
 
 	err = yaml.Unmarshal([]byte(yamldata), conf)
 	if err != nil {
-		log.Fatal("Failed to load yaml config: " + err.Error())
+		return conf, err
 	}
 
-	return conf
+	return conf, nil
 }
 
 func getFilename(maze *tvmaze.Client, detail *tivo.VideoDetail) (string, error) {
